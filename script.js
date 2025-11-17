@@ -192,6 +192,7 @@ function updateHUD() {
 setInterval(() => {
     if (lat && lng) {
         updatePRFromLocation(); // Recalcular PR y tramo
+        updateHUD(); // Actualizar el HUD cada 250ms
     }
 }, 250); // Actualiza cada 250ms
 
@@ -350,7 +351,6 @@ btnCapture.addEventListener("click", async () => {
             return;
         }
 
-        // Guardar en galería interna
         const url = URL.createObjectURL(blob);
         const timestamp = new Date().toLocaleString();
         capturedPhotos.push({ url, timestamp });
@@ -376,96 +376,4 @@ btnCapture.addEventListener("click", async () => {
             showToast("Imagen generada");
         }
     }, "image/jpeg");
-});
-
-// ---------------------------
-// Galería interna
-// ---------------------------
-function openGallery() {
-    if (!capturedPhotos.length) {
-        showToast("Aún no has tomado fotos.");
-        return;
-    }
-    galleryOverlay.classList.add("show");
-    renderGallery();
-}
-
-function closeGallery() {
-    galleryOverlay.classList.remove("show");
-}
-
-function renderGallery() {
-    galleryGrid.innerHTML = "";
-    let first = true;
-
-    capturedPhotos.forEach((photo, index) => {
-        const img = document.createElement("img");
-        img.src = photo.url;
-        img.alt = `Foto ${index + 1}`;
-        img.addEventListener("click", () => {
-            document
-                .querySelectorAll("#galleryGrid img")
-                .forEach(el => el.classList.remove("selected"));
-            img.classList.add("selected");
-            galleryPreviewImg.src = photo.url;
-        });
-
-        galleryGrid.appendChild(img);
-
-        if (first) {
-            img.classList.add("selected");
-            galleryPreviewImg.src = photo.url;
-            first = false;
-        }
-    });
-}
-
-btnGallery.addEventListener("click", openGallery);
-btnCloseGallery.addEventListener("click", closeGallery);
-
-// Cerrar galería tocando fuera del contenido
-galleryOverlay.addEventListener("click", (e) => {
-    if (e.target === galleryOverlay) {
-        closeGallery();
-    }
-});
-
-// ---------------------------
-// Configuración HUD
-// ---------------------------
-function openSettings() {
-    // cargar estado actual
-    chkDate.checked = hudConfig.showDate;
-    chkLatLng.checked = hudConfig.showLatLng;
-    chkTramo.checked = hudConfig.showTramo;
-    chkPR.checked = hudConfig.showPR;
-    txtCustom.value = hudConfig.customText;
-    settingsOverlay.classList.add("show");
-}
-
-function closeSettings() {
-    settingsOverlay.classList.remove("show");
-}
-
-btnConfig.addEventListener("click", openSettings);
-btnCloseSettings.addEventListener("click", closeSettings);
-
-// cerrar tocando fuera del cuadro
-settingsOverlay.addEventListener("click", (e) => {
-    if (e.target === settingsOverlay) {
-        closeSettings();
-    }
-});
-
-// guardar configuración
-settingsForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    hudConfig.showDate = chkDate.checked;
-    hudConfig.showLatLng = chkLatLng.checked;
-    hudConfig.showTramo = chkTramo.checked;
-    hudConfig.showPR = chkPR.checked;
-    hudConfig.customText = (txtCustom.value || "").slice(0, 40); // 40 caracteres
-
-    closeSettings();
-    updateHUD(); // aplicar de inmediato
 });
