@@ -1,7 +1,6 @@
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const btnCapture = document.getElementById("btnCapture");
-const statusEl = document.getElementById("status");
 const hudText = document.getElementById("hud-text");
 const toastEl = document.getElementById("toast");
 
@@ -9,7 +8,7 @@ let lat = null;
 let lng = null;
 let currentTramo = null;
 let currentPR = null;
-let hudLines = []; // 💡 mismas líneas para HUD y para la captura
+let hudLines = []; // mismas líneas para HUD y para captura
 
 // ---------------------------
 // Toast / notificación
@@ -80,7 +79,7 @@ function updatePRFromLocation() {
     }
 
     if (typeof findPR === "function") {
-        const distancia = 0; // luego se puede reemplazar por distancia real
+        const distancia = 0; // luego lo cambias por distancia real sobre la ruta
         currentPR = findPR(currentTramo, distancia);
     }
 }
@@ -103,17 +102,15 @@ function updateHUD() {
     }
 
     if (currentTramo) {
-        let prStr = currentPR ? `${currentPR.pr}+${currentPR.metros}m` : "calculando…";
+        const prStr = currentPR ? `${currentPR.pr}+${currentPR.metros}m` : "calculando…";
         lines.push(`Tramo: ${currentTramo}`);
         lines.push(`PR: ${prStr}`);
     } else {
         lines.push("Tramo/PR: calculando…");
     }
 
-    hudLines = lines; // 🔹 guardamos para la captura
-
-    // Mostramos igual en el HUD (multilínea)
-    hudText.innerHTML = hudLines.join("<br>");
+    hudLines = lines;                // 👈 mismas líneas para la captura
+    hudText.innerHTML = lines.join("<br>");
 }
 setInterval(updateHUD, 1000);
 
@@ -121,8 +118,6 @@ setInterval(updateHUD, 1000);
 // Auto-inicio
 // ---------------------------
 async function autoStart() {
-    statusEl.textContent = "Solicitando permisos de cámara y ubicación...";
-
     try {
         await Promise.all([
             initCamera(),
@@ -139,32 +134,32 @@ async function autoStart() {
         });
 
         btnCapture.disabled = false;
-        statusEl.textContent = "Cámara lista ✓";
-
     } catch (err) {
-        console.error("Error en autoStart:", err);
-        statusEl.textContent = err.message || "No se pudo activar la cámara. Revisa permisos.";
+        console.error("Error al iniciar:", err);
+        showToast(err.message || "No se pudo activar la cámara o ubicación.");
     }
 }
 
 document.addEventListener("DOMContentLoaded", autoStart);
 
 // ---------------------------
-// TAP EN VIDEO: reintentar cámara si algo falla
+// TAP EN VIDEO: reintentar cámara si fuera necesario
 // ---------------------------
 video.addEventListener("click", async () => {
+    if (video.videoWidth && video.videoHeight) {
+        return; // ya está funcionando
+    }
+
     try {
-        statusEl.textContent = "Reintentando cámara...";
         await initCamera();
         await new Promise(resolve => {
             if (video.readyState >= 1 && video.videoWidth > 0) resolve();
             else video.onloadedmetadata = () => resolve();
         });
-        statusEl.textContent = "Cámara activa ✓";
         btnCapture.disabled = false;
     } catch (err) {
         console.error("Error reintentando cámara:", err);
-        statusEl.textContent = err.message || "No se pudo activar la cámara.";
+        showToast(err.message || "No se pudo activar la cámara.");
     }
 });
 
@@ -202,18 +197,14 @@ btnCapture.addEventListener("click", async () => {
         const fechaStr = now.toLocaleString();
         hudLines = [
             `Fecha: ${fechaStr}`,
-            lat != null && lng != null
-                ? `Lat: ${lat.toFixed(6)}`
-                : "Ubicación no disponible",
-            lat != null && lng != null
-                ? `Lng: ${lng.toFixed(6)}`
-                : "",
+            lat != null && lng != null ? `Lat: ${lat.toFixed(6)}` : "Ubicación no disponible",
+            lat != null && lng != null ? `Lng: ${lng.toFixed(6)}` : "",
             `Tramo: ${tramo}`,
             `PR: ${prInfo.pr}+${prInfo.metros}m`
         ].filter(Boolean);
     }
 
-    // Mismo estilo del HUD: barra negra y texto blanco multilínea en la parte inferior
+    // MISMO estilo del HUD: barra negra multilínea en la parte inferior
     ctx.font = "12px Arial";
     const lineHeight = 16;
     const paddingY = 6;
