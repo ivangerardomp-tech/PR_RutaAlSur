@@ -118,7 +118,6 @@ function updatePRFromLocation() {
     }
 }
 
-
 // ---------------------------
 // Actualizar HUD en vivo
 // ---------------------------
@@ -161,7 +160,7 @@ function updateHUD() {
             if (!currentTramo) {
                 prPart = "PR calculando…";
             } else if (currentPR) {
-                prPart = `PR ${currentPR.pr}+${currentPR.metros}m`;
+                prPart = `PR ${currentPR.pr}+${currentPR.metros}`;
             } else {
                 prPart = "PR calculando…";
             }
@@ -186,21 +185,16 @@ function updateHUD() {
     hudLines = lines;
     hudText.innerHTML = lines.join("<br>");
 }
-setInterval(updateHUD, 1000);
+setInterval(updateHUD, 250); // Actualiza cada 250ms
 
 // ---------------------------
 // Auto-inicio
 // ---------------------------
 async function autoStart() {
     try {
-        const geomPromises = [];
-        if (window.kmlReady) geomPromises.push(window.kmlReady.catch(() => {}));
-        if (window.prsReady) geomPromises.push(window.prsReady.catch(() => {}));
-
         await Promise.all([
             initCamera(),
-            getLocationOnce(),
-            ...geomPromises
+            getLocationOnce()
         ]);
 
         await new Promise(resolve => {
@@ -217,7 +211,6 @@ async function autoStart() {
         showToast(err.message || "No se pudo activar la cámara o ubicación.");
     }
 }
-
 
 document.addEventListener("DOMContentLoaded", autoStart);
 
@@ -251,9 +244,7 @@ btnCapture.addEventListener("click", async () => {
         return;
     }
 
-    if (typeof nearestTramo !== "function" ||
-        typeof distanciaDesdeOrigenTramo !== "function" ||
-        typeof findPR !== "function") {
+    if (typeof nearestTramo !== "function" || typeof findPR !== "function") {
         alert("Datos de tramo/PR aún no están listos.");
         return;
     }
@@ -307,7 +298,7 @@ btnCapture.addEventListener("click", async () => {
             let prPart = "";
 
             if (tramoOn) rnPart = `RN ${tramo}`;
-            if (prOn) prPart = `PR ${prInfo.pr}+${prInfo.metros}m`;
+            if (prOn) prPart = `PR ${prInfo.pr}+${prInfo.metros}`;
 
             let line = "";
             if (rnPart && prPart) line = `${rnPart}   ${prPart}`;
@@ -351,6 +342,7 @@ btnCapture.addEventListener("click", async () => {
             return;
         }
 
+        // Guardar en galería interna
         const url = URL.createObjectURL(blob);
         const timestamp = new Date().toLocaleString();
         capturedPhotos.push({ url, timestamp });
@@ -377,7 +369,6 @@ btnCapture.addEventListener("click", async () => {
         }
     }, "image/jpeg");
 });
-
 
 // ---------------------------
 // Galería interna
