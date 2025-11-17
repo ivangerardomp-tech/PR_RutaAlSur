@@ -26,16 +26,7 @@
             Math.sin(dLon / 2) *
             Math.sin(dLon / 2);
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return R * c; // Devuelve la distancia en metros
-    }
-
-    // Interpolación entre dos puntos
-    function interpolateBetweenTwoPoints(p1, p2, dist) {
-        const totalDistance = haversine(p1.lat, p1.lng, p2.lat, p2.lng);
-        const ratio = dist / totalDistance;
-        const lat = p1.lat + (p2.lat - p1.lat) * ratio;
-        const lng = p1.lng + (p2.lng - p1.lng) * ratio;
-        return { lat, lng };
+        return R * c;
     }
 
     async function loadKmlForTramo(tramo) {
@@ -140,30 +131,21 @@
         const route = Rutas[tramoId];
         if (!route) return null;
 
-        const pts = route.points; // Puntos de la ruta KML
+        const pts = route.points;
         let bestIdx = -1;
         let bestDist = Infinity;
 
-        // Recorrer todos los puntos de la ruta y calcular la distancia más cercana
-        for (let i = 0; i < pts.length - 1; i++) {
-            const p1 = pts[i];
-            const p2 = pts[i + 1];
-            const dist = haversine(lat, lng, p1.lat, p1.lng);
-            if (dist < bestDist) {
-                bestDist = dist;
+        // Aquí recorremos todos; si fuese muy pesado se puede muestrear
+        for (let i = 0; i < pts.length; i++) {
+            const p = pts[i];
+            const d = haversine(lat, lng, p.lat, p.lng);
+            if (d < bestDist) {
+                bestDist = d;
                 bestIdx = i;
             }
         }
 
         if (bestIdx < 0) return null;
-
-        // Interpolamos entre el punto más cercano y el siguiente para obtener la posición exacta
-        const p1 = pts[bestIdx];
-        const p2 = pts[bestIdx + 1];
-        const interpolatedPoint = interpolateBetweenTwoPoints(p1, p2, bestDist);
-
-        // Calculamos la distancia acumulada desde el inicio del tramo hasta el punto interpolado
-        const distAcum = route.cum[bestIdx] + bestDist;
-        return distAcum; // Distancia acumulada en metros
+        return pts[bestIdx].dist; // metros desde el inicio del tramo
     };
 })();
