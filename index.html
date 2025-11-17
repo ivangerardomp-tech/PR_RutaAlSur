@@ -27,6 +27,7 @@
 
     <!-- Controles -->
     <div class="controls-row">
+        <button id="btnConfig">⚙️</button>
         <button id="btnGallery" disabled>🖼️</button>
         <button id="btnCapture" disabled>📸</button>
     </div>
@@ -45,6 +46,37 @@
             <div id="galleryPreview">
                 <img id="galleryPreviewImg" src="" alt="Vista previa">
             </div>
+        </div>
+    </div>
+
+    <!-- Configuración del HUD -->
+    <div id="settingsOverlay">
+        <div class="settings-content">
+            <button id="btnCloseSettings">✕</button>
+            <h3>Configurar HUD</h3>
+            <form id="settingsForm">
+                <label>
+                    <input type="checkbox" id="chkDate" checked>
+                    Fecha y hora
+                </label>
+                <label>
+                    <input type="checkbox" id="chkLatLng" checked>
+                    Latitud y longitud
+                </label>
+                <label>
+                    <input type="checkbox" id="chkTramo" checked>
+                    Tramo
+                </label>
+                <label>
+                    <input type="checkbox" id="chkPR" checked>
+                    PR
+                </label>
+                <label class="settings-text-label">
+                    Texto adicional (máx. 30 caracteres):
+                    <input type="text" id="txtCustom" maxlength="30" placeholder="Opcional">
+                </label>
+                <button type="submit" id="btnSaveSettings">Guardar</button>
+            </form>
         </div>
     </div>
 </body>
