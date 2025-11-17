@@ -78,7 +78,7 @@ function startTrackingLocation() {
         (pos) => {
             lat = pos.coords.latitude;
             lng = pos.coords.longitude;
-            updatePRFromLocation();
+            updatePRFromLocation(); // Actualiza el PR y el tramo
         },
         (err) => {
             console.error("Error geolocalización:", err);
@@ -189,7 +189,7 @@ function updateHUD() {
 // ---------------------------
 // Actualizar la información cada 250ms
 // ---------------------------
-setInterval(() => {
+const updateInterval = setInterval(() => {
     if (lat && lng) {
         updatePRFromLocation(); // Recalcular PR y tramo
         updateHUD(); // Actualizar el HUD cada 250ms
