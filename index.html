@@ -25,11 +25,11 @@
         </div>
     </div>
 
-    <!-- Controles -->
+    <!-- Controles (ahora: Config, CÁMARA, Galería) -->
     <div class="controls-row">
         <button id="btnConfig">⚙️</button>
-        <button id="btnGallery" disabled>🖼️</button>
         <button id="btnCapture" disabled>📸</button>
+        <button id="btnGallery" disabled>🖼️</button>
     </div>
 
     <canvas id="canvas" style="display:none"></canvas>
@@ -72,8 +72,8 @@
                     PR
                 </label>
                 <label class="settings-text-label">
-                    Texto adicional (máx. 50 caracteres):
-                    <input type="text" id="txtCustom" maxlength="50" placeholder="Opcional">
+                    Texto adicional (máx. 40 caracteres):
+                    <input type="text" id="txtCustom" maxlength="40" placeholder="Opcional">
                 </label>
                 <button type="submit" id="btnSaveSettings">Guardar</button>
             </form>
