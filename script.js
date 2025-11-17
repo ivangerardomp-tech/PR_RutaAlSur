@@ -65,28 +65,26 @@ async function initCamera() {
 }
 
 // ---------------------------
-// Ubicación
+// Obtener coordenadas continuamente
 // ---------------------------
-function getLocationOnce() {
-    return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) {
-            return reject(new Error("Geolocalización no soportada."));
-        }
+function startTrackingLocation() {
+    if (!navigator.geolocation) {
+        console.error("Geolocalización no soportada.");
+        return;
+    }
 
-        navigator.geolocation.getCurrentPosition(
-            pos => {
-                lat = pos.coords.latitude;
-                lng = pos.coords.longitude;
-                updatePRFromLocation();
-                resolve();
-            },
-            err => {
-                console.error("Error geolocalización:", err);
-                reject(err);
-            },
-            { enableHighAccuracy: true }
-        );
-    });
+    // Usamos `watchPosition` para obtener actualizaciones automáticas
+    navigator.geolocation.watchPosition(
+        (pos) => {
+            lat = pos.coords.latitude;
+            lng = pos.coords.longitude;
+            updatePRFromLocation();
+        },
+        (err) => {
+            console.error("Error geolocalización:", err);
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 } // config
+    );
 }
 
 // ---------------------------
@@ -116,6 +114,8 @@ function updatePRFromLocation() {
     if (typeof findPR === "function") {
         currentPR = findPR(tramo, dist); // { pr, metros }
     }
+
+    updateHUD(); // Actualizamos HUD cuando cambia el PR y el tramo
 }
 
 // ---------------------------
@@ -191,10 +191,9 @@ function updateHUD() {
 // ---------------------------
 setInterval(() => {
     if (lat && lng) {
-        updatePRFromLocation();
-        updateHUD();
+        updatePRFromLocation(); // Recalcular PR y tramo
     }
-}, 250); // Actualiza cada 250 ms
+}, 250); // Actualiza cada 250ms
 
 // ---------------------------
 // Auto-inicio
@@ -203,7 +202,7 @@ async function autoStart() {
     try {
         await Promise.all([
             initCamera(),
-            getLocationOnce()
+            startTrackingLocation() // Iniciar el seguimiento de ubicación
         ]);
 
         await new Promise(resolve => {
