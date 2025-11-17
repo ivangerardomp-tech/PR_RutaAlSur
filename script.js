@@ -14,6 +14,10 @@ let currentPR = null;
 // Toast / notificación
 // ---------------------------
 function showToast(message) {
+    if (!toastEl) {
+        alert(message);
+        return;
+    }
     toastEl.textContent = message;
     toastEl.classList.add("show");
     setTimeout(() => toastEl.classList.remove("show"), 2500);
@@ -23,10 +27,19 @@ function showToast(message) {
 // Activar cámara
 // ---------------------------
 async function initCamera() {
-    const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }
-    });
-    video.srcObject = stream;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Este navegador no soporta cámara.");
+    }
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "environment" }
+        });
+        video.srcObject = stream;
+    } catch (err) {
+        console.error("Error getUserMedia:", err);
+        throw err;
+    }
 }
 
 // ---------------------------
@@ -34,6 +47,10 @@ async function initCamera() {
 // ---------------------------
 function getLocationOnce() {
     return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            return reject(new Error("Geolocalización no soportada."));
+        }
+
         navigator.geolocation.getCurrentPosition(
             pos => {
                 lat = pos.coords.latitude;
@@ -41,7 +58,10 @@ function getLocationOnce() {
                 updatePRFromLocation();
                 resolve();
             },
-            err => reject(err),
+            err => {
+                console.error("Error geolocalización:", err);
+                reject(err);
+            },
             { enableHighAccuracy: true }
         );
     });
@@ -62,7 +82,7 @@ function updatePRFromLocation() {
     }
 
     if (typeof findPR === "function") {
-        const distancia = 0; // se puede reemplazar luego por distancia real
+        const distancia = 0; // luego se puede cambiar por distancia real
         currentPR = findPR(currentTramo, distancia);
     }
 }
@@ -76,8 +96,11 @@ function updateHUD() {
 
     let lines = [`Fecha: ${fechaStr}`];
 
-    if (lat != null) lines.push(`Lat: ${lat.toFixed(6)} Lng: ${lng.toFixed(6)}`);
-    else lines.push("Ubicación: obteniendo…");
+    if (lat != null) {
+        lines.push(`Lat: ${lat.toFixed(6)} Lng: ${lng.toFixed(6)}`);
+    } else {
+        lines.push("Ubicación: obteniendo…");
+    }
 
     if (currentTramo) {
         let prStr = currentPR ? `${currentPR.pr}+${currentPR.metros}m` : "calculando…";
@@ -103,17 +126,20 @@ async function autoStart() {
             getLocationOnce()
         ]);
 
-        // Esperar metadatos del video
+        // Esperar metadatos del video (ancho/alto válidos)
         await new Promise(resolve => {
-            if (video.readyState >= 1 && video.videoWidth > 0) resolve();
-            else video.onloadedmetadata = () => resolve();
+            if (video.readyState >= 1 && video.videoWidth > 0) {
+                resolve();
+            } else {
+                video.onloadedmetadata = () => resolve();
+            }
         });
 
         btnCapture.disabled = false;
         statusEl.textContent = "Cámara lista ✓";
 
     } catch (err) {
-        console.error("Error:", err);
+        console.error("Error en autoStart:", err);
         statusEl.textContent = "No se pudo activar la cámara. Revisa permisos.";
     }
 }
@@ -121,29 +147,37 @@ async function autoStart() {
 document.addEventListener("DOMContentLoaded", autoStart);
 
 // ---------------------------
-// Fallback para PWA iOS (tocar video si está negro)
+// TAP EN VIDEO: reintentar cámara (especialmente PWA iOS)
 // ---------------------------
 video.addEventListener("click", async () => {
-    if (!video.videoWidth || !video.videoHeight) {
-        try {
-            await initCamera();
-            await new Promise(resolve => {
-                if (video.readyState >= 1 && video.videoWidth > 0) resolve();
-                else video.onloadedmetadata = () => resolve();
-            });
-            statusEl.textContent = "Cámara activa ✓";
-        } catch (e) {
-            console.error(e);
-        }
+    try {
+        statusEl.textContent = "Reintentando cámara...";
+        await initCamera();
+        await new Promise(resolve => {
+            if (video.readyState >= 1 && video.videoWidth > 0) {
+                resolve();
+            } else {
+                video.onloadedmetadata = () => resolve();
+            }
+        });
+        statusEl.textContent = "Cámara activa ✓";
+    } catch (err) {
+        console.error("Error reintentando cámara:", err);
+        statusEl.textContent = "No se pudo activar la cámara. Verifica permisos en Ajustes.";
     }
 });
 
 // ---------------------------
-// Capturar imagen con texto ABAJO
+// Capturar imagen con MISMO estilo del HUD
 // ---------------------------
 btnCapture.addEventListener("click", async () => {
     if (!lat || !lng) {
         alert("Ubicación no disponible aún.");
+        return;
+    }
+
+    if (typeof nearestTramo !== "function" || typeof findPR !== "function") {
+        alert("Datos de tramo/PR aún no cargados. Espera unos segundos.");
         return;
     }
 
@@ -158,47 +192,37 @@ btnCapture.addEventListener("click", async () => {
     canvas.width = w;
     canvas.height = h;
 
+    // Dibujar frame actual
     ctx.drawImage(video, 0, 0, w, h);
 
-    const fechaStr = new Date().toLocaleString();
-    const textLines = [
-        `Fecha: ${fechaStr}`,
-        `Lat: ${lat.toFixed(6)}`,
-        `Lng: ${lng.toFixed(6)}`,
-        `Tramo: ${tramo}`,
-        `PR: ${prInfo.pr}+${prInfo.metros}m`
-    ];
+    // 🔹 Usar EXACTAMENTE el mismo texto que el HUD
+    const hudString = hudText.textContent || "";
 
-    ctx.font = "24px Arial";
-    const lineHeight = 28;
-    const margin = 18;
-    const totalTextHeight = lineHeight * textLines.length;
+    // Mismo estilo: barra negra semitransparente abajo, texto blanco pequeño
+    ctx.font = "12px Arial";
+    const paddingY = 6;
+    const barHeight = 12 + paddingY * 2;
 
-    const boxPaddingX = 10;
-    const boxPaddingY = 8;
-    const boxWidth = w * 0.9;
-    const boxHeight = totalTextHeight + boxPaddingY * 2;
+    ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+    ctx.fillRect(0, h - barHeight, w, barHeight);
 
-    const boxX = (w - boxWidth) / 2;
-    const boxY = h - margin - boxHeight;
+    ctx.fillStyle = "#ffffff";
+    ctx.textBaseline = "middle";
 
-    ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
-    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
-
-    ctx.fillStyle = "yellow";
-    let y = boxY + boxPaddingY + lineHeight;
-    const textX = boxX + boxPaddingX;
-    for (const line of textLines) {
-        ctx.fillText(line, textX, y);
-        y += lineHeight;
-    }
+    // Pequeño margen a la izquierda
+    const textX = 8;
+    const textY = h - barHeight / 2;
+    ctx.fillText(hudString, textX, textY);
 
     canvas.toBlob(async blob => {
-        if (!blob) return alert("No se pudo generar la imagen.");
+        if (!blob) {
+            alert("No se pudo generar la imagen.");
+            return;
+        }
 
         const file = new File([blob], "foto_pr.jpg", { type: "image/jpeg" });
 
-        if (navigator.share && navigator.canShare({ files: [file] })) {
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
                 await navigator.share({
                     files: [file],
@@ -206,7 +230,8 @@ btnCapture.addEventListener("click", async () => {
                     text: "Foto con PR y coordenadas"
                 });
                 showToast("Foto guardada/enviada");
-            } catch {
+            } catch (e) {
+                console.error("Error al compartir:", e);
                 showToast("Compartir cancelado");
             }
         } else {
