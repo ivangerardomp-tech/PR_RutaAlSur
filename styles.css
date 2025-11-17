@@ -1,26 +1,51 @@
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+}
+
 body {
     background: #0a3d62;
     color: white;
     font-family: Arial, sans-serif;
     text-align: center;
     padding: 10px;
+    box-sizing: border-box;
 }
 
+/* Contenedor del video que se adapta al alto disponible */
 .video-wrapper {
     position: relative;
     width: 100%;
-    max-width: 600px;
+    max-width: 700px;
     margin: 0 auto 10px auto;
 }
 
+/* POR DEFECTO (retrato): video ocupa todo el ancho */
 video {
     width: 100%;
+    height: auto;
     display: block;
     border-radius: 10px;
     background: black;
+    object-fit: contain;  /* muestra toda la imagen, sin recortar */
 }
 
-/* HUD en vivo sobre el video */
+/* En formato horizontal, aprovechamos el alto */
+@media (orientation: landscape) {
+    .video-wrapper {
+        max-width: none;
+        height: calc(100vh - 150px); /* deja espacio para título, botón y texto */
+    }
+
+    video {
+        width: auto;
+        height: 100%;
+        margin: 0 auto;
+    }
+}
+
+/* HUD en vivo sobre el video (multilínea) */
 #hud {
     position: absolute;
     left: 0;
@@ -30,11 +55,11 @@ video {
     background: rgba(0, 0, 0, 0.45);
     color: #fff;
     font-size: 12px;
-    padding: 4px 8px;
+    padding: 6px 8px;
     text-align: left;
     border-radius: 0 0 10px 10px;
-    z-index: 3;              /* Asegura que se vea en Safari y PWA */
-    pointer-events: none;    /* No bloquea taps en el video */
+    z-index: 3;              /* visible en Safari/iPhone */
+    pointer-events: none;    /* no bloquea taps en el video */
 }
 
 #hud-text {
