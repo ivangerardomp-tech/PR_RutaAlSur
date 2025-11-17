@@ -160,7 +160,7 @@ function updateHUD() {
             if (!currentTramo) {
                 prPart = "PR calculando…";
             } else if (currentPR) {
-                prPart = `PR ${currentPR.pr}+${currentPR.metros}`;
+                prPart = `PR ${currentPR.pr}+${currentPR.metros}m`;
             } else {
                 prPart = "PR calculando…";
             }
@@ -185,7 +185,16 @@ function updateHUD() {
     hudLines = lines;
     hudText.innerHTML = lines.join("<br>");
 }
-setInterval(updateHUD, 250); // Actualiza cada 250ms
+
+// ---------------------------
+// Actualizar la información cada 250ms
+// ---------------------------
+setInterval(() => {
+    if (lat && lng) {
+        updatePRFromLocation();
+        updateHUD();
+    }
+}, 250); // Actualiza cada 250 ms
 
 // ---------------------------
 // Auto-inicio
@@ -298,7 +307,7 @@ btnCapture.addEventListener("click", async () => {
             let prPart = "";
 
             if (tramoOn) rnPart = `RN ${tramo}`;
-            if (prOn) prPart = `PR ${prInfo.pr}+${prInfo.metros}`;
+            if (prOn) prPart = `PR ${prInfo.pr}+${prInfo.metros}m`;
 
             let line = "";
             if (rnPart && prPart) line = `${rnPart}   ${prPart}`;
