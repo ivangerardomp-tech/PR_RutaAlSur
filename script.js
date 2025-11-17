@@ -2,9 +2,28 @@ const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const btnCapture = document.getElementById("btnCapture");
 const statusEl = document.getElementById("status");
+const hudText = document.getElementById("hud-text");
+const toastEl = document.getElementById("toast");
 
 let lat = null;
 let lng = null;
+let currentTramo = null;
+let currentPR = null;   // { pr, metros } o null
+
+// ---------------------------
+// Utilidad: mostrar toast
+// ---------------------------
+function showToast(message) {
+    if (!toastEl) {
+        alert(message);
+        return;
+    }
+    toastEl.textContent = message;
+    toastEl.classList.add("show");
+    setTimeout(() => {
+        toastEl.classList.remove("show");
+    }, 2500);
+}
 
 // ---------------------------
 // CÁMARA
@@ -14,28 +33,11 @@ async function initCamera() {
         throw new Error("Este navegador no soporta cámara.");
     }
 
-    console.log("initCamera: solicitando getUserMedia...");
     const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } }
+        video: { facingMode: "environment" }
     });
-
-    console.log("initCamera: stream obtenido", stream);
     video.srcObject = stream;
-
-    // Estas líneas ayudan mucho en iOS
-    video.setAttribute("playsinline", "true");
-    video.setAttribute("autoplay", "true");
-    video.muted = true;
-
-    video.onloadedmetadata = () => {
-        console.log("video.onloadedmetadata: videoWidth=", video.videoWidth, "videoHeight=", video.videoHeight);
-        statusEl.textContent = `Cámara lista ( ${video.videoWidth} x ${video.videoHeight} )`;
-        video.play().catch(err => {
-            console.error("Error al hacer video.play():", err);
-        });
-    };
 }
-
 
 // ---------------------------
 // GEOLOCALIZACIÓN (Promise)
@@ -51,6 +53,8 @@ function getLocationOnce() {
                 lat = pos.coords.latitude;
                 lng = pos.coords.longitude;
                 console.log("Ubicación:", lat, lng);
+                // Cada vez que tengamos ubicación, intentamos recalcular tramo/PR
+                updatePRFromLocation();
                 resolve();
             },
             err => {
@@ -62,13 +66,69 @@ function getLocationOnce() {
 }
 
 // ---------------------------
+// Calcular tramo y PR con la ubicación actual
+// ---------------------------
+function updatePRFromLocation() {
+    if (lat == null || lng == null) return;
+    if (typeof nearestTramo !== "function" || typeof findPR !== "function") {
+        // Aún no cargan los KML / PRs
+        return;
+    }
+
+    const tramo = nearestTramo(lat, lng);
+    if (!tramo) {
+        currentTramo = null;
+        currentPR = null;
+        return;
+    }
+
+    currentTramo = tramo;
+
+    // Por ahora seguimos con distancia = 0 (luego se puede cambiar a distancia real)
+    const distancia = 0;
+    currentPR = findPR(tramo, distancia);
+}
+
+// ---------------------------
+// HUD en vivo (fecha/hora, coords, tramo, PR)
+// ---------------------------
+function updateHUD() {
+    if (!hudText) return;
+
+    const now = new Date();
+    const fechaStr = now.toLocaleString();
+
+    let lines = [`Fecha: ${fechaStr}`];
+
+    if (lat != null && lng != null) {
+        lines.push(`Lat: ${lat.toFixed(6)} Lng: ${lng.toFixed(6)}`);
+    } else {
+        lines.push("Ubicación: obteniendo…");
+    }
+
+    if (currentTramo) {
+        const prStr = currentPR
+            ? `${currentPR.pr}+${currentPR.metros}m`
+            : "calculando…";
+        lines.push(`Tramo: ${currentTramo}`);
+        lines.push(`PR: ${prStr}`);
+    } else {
+        lines.push("Tramo/PR: calculando…");
+    }
+
+    hudText.textContent = lines.join(" | ");
+}
+
+// Actualizar HUD cada segundo
+setInterval(updateHUD, 1000);
+
+// ---------------------------
 // AUTO-INICIO AL CARGAR
 // ---------------------------
 async function autoStart() {
     statusEl.textContent = "Solicitando permisos de cámara y ubicación...";
 
     try {
-        // Disparamos cámara y GPS al cargar
         await Promise.all([
             initCamera(),
             getLocationOnce()
@@ -76,12 +136,10 @@ async function autoStart() {
 
         btnCapture.disabled = false;
         statusEl.textContent = "Listo para capturar ✅";
-
     } catch (err) {
         console.error("Error en autoStart:", err);
         statusEl.textContent =
             "No se pudo activar automáticamente la cámara. Revisa los permisos del navegador o del sistema.";
-        // Aquí ya NO hay botón de respaldo, como pediste.
     }
 }
 
@@ -104,11 +162,10 @@ btnCapture.addEventListener("click", async () => {
         return;
     }
 
-    const tramo = nearestTramo(lat, lng) || "SIN TRAMO";
+    const tramo = currentTramo || nearestTramo(lat, lng) || "SIN TRAMO";
 
-    // TODO: aquí pondremos tu distancia real sobre la ruta densificada.
-    const distancia = 0;
-    const prInfo = findPR(tramo, distancia);
+    const distancia = 0; // pendiente: sustituir por distancia real
+    const prInfo = currentPR || findPR(tramo, distancia);
 
     const ctx = canvas.getContext("2d");
     const w = video.videoWidth || 1280;
@@ -117,6 +174,7 @@ btnCapture.addEventListener("click", async () => {
     canvas.width = w;
     canvas.height = h;
 
+    // Dibujamos el frame actual del video
     ctx.drawImage(video, 0, 0, w, h);
 
     const fechaStr = new Date().toLocaleString();
@@ -129,7 +187,7 @@ btnCapture.addEventListener("click", async () => {
         `PR: ${prInfo.pr}+${prInfo.metros}m`
     ];
 
-    // Fondo semitransparente para el texto
+    // Fondo semitransparente para el texto (similar al HUD)
     ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
     const boxWidth = w * 0.8;
     const boxHeight = 150;
@@ -158,13 +216,16 @@ btnCapture.addEventListener("click", async () => {
                     title: "Foto PR",
                     text: "Foto con PR y coordenadas"
                 });
+                // Aquí sabemos que el usuario cerró la hoja de compartir
+                showToast("Foto enviada o guardada desde el sistema.");
             } catch (e) {
                 console.error("Error al compartir:", e);
+                showToast("Compartir cancelado.");
             }
         } else {
             const url = URL.createObjectURL(blob);
             window.open(url, "_blank");
-            alert("Tu dispositivo no soporta compartir archivos desde el navegador. Se abrió la imagen en otra pestaña.");
+            showToast("Imagen generada. Puedes guardarla desde el visor.");
         }
     }, "image/jpeg");
 });
