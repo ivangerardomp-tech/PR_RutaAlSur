@@ -1,63 +1,110 @@
-let PR_TABLE = [];
+// pr_finder.js
+// Carga PRs.csv y permite obtener el PR y metros a partir de
+// (TRAMO, distancia_desde_origen_en_metros).
 
-async function loadPRs() {
-    const text = await fetch("PRs.csv").then(r => r.text());
-    const lines = text.split("\n");
+(function () {
+  const tramoToPR = {}; // TRAMO -> { dists: [], prs: [] }
 
-    lines.slice(1).forEach(row => {
-        let [tramo, dist, pr] = row.split(",");
-        if (!tramo) return;
-        PR_TABLE.push({
-            tramo: tramo.trim(),
-            dist: parseFloat(dist),
-            pr: pr.trim()
-        });
-    });
-}
+  function parseNumber(str) {
+    if (str == null) return NaN;
+    return Number(String(str).trim().replace(",", "."));
+  }
 
-function haversine(lat1, lon1, lat2, lon2) {
-    const R = 6371000;
-    const toRad = x => x * Math.PI / 180;
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
+  async function loadPRs() {
+    try {
+      const resp = await fetch("PRs.csv");
+      if (!resp.ok) {
+        console.error("No se pudo cargar PRs.csv", resp.status);
+        return;
+      }
 
-    const a = Math.sin(dLat/2)**2 +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-        Math.sin(dLon/2)**2;
+      const text = await resp.text();
+      const lines = text.trim().split(/\r?\n/);
+      if (!lines.length) return;
 
-    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
+      const header = lines[0].split(",");
+      const idxTramo = header.indexOf("TRAMO");
+      const idxPR = header.indexOf("PR");
+      const idxDist = header.indexOf("DISTANCIA");
 
-function nearestTramo(lat, lng) {
-    let best = null;
-    let bestDist = 9999999;
+      if (idxTramo === -1 || idxPR === -1 || idxDist === -1) {
+        console.error(
+          "PRs.csv no tiene columnas esperadas: TRAMO, PR, DISTANCIA"
+        );
+        return;
+      }
 
-    for (const sec of SECCIONES) {
-        sec.coords.forEach(pt => {
-            const d = haversine(lat, lng, pt[0], pt[1]);
-            if (d < bestDist) {
-                bestDist = d;
-                best = sec.tramo;
-            }
-        });
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        const cols = line.split(",");
+        if (cols.length < header.length) continue;
+
+        const tramo = String(cols[idxTramo]).trim();
+        const pr = String(cols[idxPR]).trim();
+        const dist = parseNumber(cols[idxDist]);
+        if (!tramo || !pr || !isFinite(dist)) continue;
+
+        if (!tramoToPR[tramo]) tramoToPR[tramo] = [];
+        tramoToPR[tramo].push({ dist, pr });
+      }
+
+      // Ordenar por distancia y convertir a arrays
+      for (const tramo of Object.keys(tramoToPR)) {
+        const arr = tramoToPR[tramo].sort((a, b) => a.dist - b.dist);
+        tramoToPR[tramo] = {
+          dists: arr.map((x) => x.dist),
+          prs: arr.map((x) => x.pr),
+        };
+      }
+
+      console.log(
+        "PRs cargados para tramos:",
+        Object.keys(tramoToPR),
+        " (total filas:",
+        lines.length - 1,
+        ")"
+      );
+    } catch (e) {
+      console.error("Error cargando PRs.csv:", e);
     }
-    return best;
-}
+  }
 
-function findPR(tramo, distancia) {
-    let matches = PR_TABLE.filter(r => r.tramo === tramo);
-    matches.sort((a,b) => a.dist - b.dist);
-
-    let last = matches[0];
-    for (const row of matches) {
-        if (row.dist <= distancia) last = row;
-        else break;
+  // Equivalente a tu búsqueda con searchsorted en Python:
+  // - Busca el mayor DISTANCIA <= distancia_objetivo para el TRAMO dado.
+  // - Devuelve ese PR y los metros = objetivo - DISTANCIA_PR.
+  function findPR(tramo, distanciaM) {
+    const data = tramoToPR[tramo];
+    if (!data || !data.dists.length || !isFinite(distanciaM)) {
+      return { pr: "?", metros: 0 };
     }
 
-    return {
-        pr: last.pr,
-        metros: Math.round(distancia - last.dist)
-    };
-}
+    const dists = data.dists;
+    const prs = data.prs;
 
-loadPRs();
+    // Binary search: posición para insertar por la derecha
+    let lo = 0;
+    let hi = dists.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (dists[mid] <= distanciaM) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+    let idx = lo - 1; // mayor DISTANCIA <= distanciaM
+    if (idx < 0) idx = 0;
+
+    const baseDist = dists[idx];
+    let metros = Math.round(distanciaM - baseDist);
+    if (metros < 0) metros = 0; // por si la distancia cae antes del primer PR
+
+    return { pr: prs[idx], metros };
+  }
+
+  window.findPR = findPR;
+  window.prsReady = loadPRs().catch((e) =>
+    console.error("Error en carga PRs:", e)
+  );
+})();
