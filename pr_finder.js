@@ -1,15 +1,15 @@
 // pr_finder.js
+// Carga PRs.csv y permite obtener el PR y metros a partir de
+// (TRAMO, distancia_desde_origen_en_metros).
 
 (function () {
   const tramoToPR = {}; // TRAMO -> { dists: [], prs: [] }
 
-  // Parsear números con separador de coma
   function parseNumber(str) {
     if (str == null) return NaN;
     return Number(String(str).trim().replace(",", "."));
   }
 
-  // Cargar PRs desde el archivo CSV
   async function loadPRs() {
     try {
       const resp = await fetch("PRs.csv");
@@ -70,7 +70,7 @@
     }
   }
 
-  // Función para buscar el PR correspondiente dado el tramo y la distancia
+  // Equivalente a tu búsqueda con searchsorted en Python:
   // - Busca el mayor DISTANCIA <= distancia_objetivo para el TRAMO dado.
   // - Devuelve ese PR y los metros = objetivo - DISTANCIA_PR.
   function findPR(tramo, distanciaM) {
@@ -82,7 +82,7 @@
     const dists = data.dists;
     const prs = data.prs;
 
-    // Búsqueda binaria para obtener el PR correspondiente
+    // Binary search: posición para insertar por la derecha
     let lo = 0;
     let hi = dists.length;
     while (lo < hi) {
@@ -93,13 +93,12 @@
         hi = mid;
       }
     }
-
-    let idx = lo - 1; // Mayor DISTANCIA <= distanciaM
+    let idx = lo - 1; // mayor DISTANCIA <= distanciaM
     if (idx < 0) idx = 0;
 
     const baseDist = dists[idx];
     let metros = Math.round(distanciaM - baseDist);
-    if (metros < 0) metros = 0; // Por si la distancia cae antes del primer PR
+    if (metros < 0) metros = 0; // por si la distancia cae antes del primer PR
 
     return { pr: prs[idx], metros };
   }
