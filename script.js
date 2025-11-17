@@ -2,6 +2,7 @@ const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const btnCapture = document.getElementById("btnCapture");
 const btnGallery = document.getElementById("btnGallery");
+const btnConfig = document.getElementById("btnConfig");
 const hudText = document.getElementById("hud-text");
 const toastEl = document.getElementById("toast");
 
@@ -10,12 +11,29 @@ const btnCloseGallery = document.getElementById("btnCloseGallery");
 const galleryGrid = document.getElementById("galleryGrid");
 const galleryPreviewImg = document.getElementById("galleryPreviewImg");
 
+const settingsOverlay = document.getElementById("settingsOverlay");
+const btnCloseSettings = document.getElementById("btnCloseSettings");
+const settingsForm = document.getElementById("settingsForm");
+const chkDate = document.getElementById("chkDate");
+const chkLatLng = document.getElementById("chkLatLng");
+const chkTramo = document.getElementById("chkTramo");
+const chkPR = document.getElementById("chkPR");
+const txtCustom = document.getElementById("txtCustom");
+
 let lat = null;
 let lng = null;
 let currentTramo = null;
 let currentPR = null;
 let hudLines = []; // mismas líneas para HUD y captura
 let capturedPhotos = []; // { url, timestamp }
+
+const hudConfig = {
+    showDate: true,
+    showLatLng: true,
+    showTramo: true,
+    showPR: true,
+    customText: ""
+};
 
 // ---------------------------
 // Toast / notificación
@@ -99,21 +117,44 @@ function updateHUD() {
     const fechaStr = now.toLocaleString();
 
     const lines = [];
-    lines.push(`Fecha: ${fechaStr}`);
 
-    if (lat != null && lng != null) {
-        lines.push(`Lat: ${lat.toFixed(6)}`);
-        lines.push(`Lng: ${lng.toFixed(6)}`);
-    } else {
-        lines.push("Ubicación: obteniendo…");
+    if (hudConfig.showDate) {
+        lines.push(`Fecha: ${fechaStr}`);
     }
 
-    if (currentTramo) {
-        const prStr = currentPR ? `${currentPR.pr}+${currentPR.metros}m` : "calculando…";
-        lines.push(`Tramo: ${currentTramo}`);
-        lines.push(`PR: ${prStr}`);
-    } else {
-        lines.push("Tramo/PR: calculando…");
+    if (hudConfig.showLatLng) {
+        if (lat != null && lng != null) {
+            lines.push(`Lat: ${lat.toFixed(6)}`);
+            lines.push(`Lng: ${lng.toFixed(6)}`);
+        } else {
+            lines.push("Ubicación: obteniendo…");
+        }
+    }
+
+    if (hudConfig.showTramo) {
+        const tramoText = currentTramo ? `Tramo: ${currentTramo}` : "Tramo: calculando…";
+        lines.push(tramoText);
+    }
+
+    if (hudConfig.showPR) {
+        let prStr;
+        if (!currentTramo) {
+            prStr = "PR: calculando…";
+        } else if (currentPR) {
+            prStr = `PR: ${currentPR.pr}+${currentPR.metros}m`;
+        } else {
+            prStr = "PR: calculando…";
+        }
+        lines.push(prStr);
+    }
+
+    if (hudConfig.customText && hudConfig.customText.trim() !== "") {
+        lines.push(hudConfig.customText.trim());
+    }
+
+    // Si por alguna razón no se agregó nada, mantenemos algo mínimo
+    if (lines.length === 0) {
+        lines.push("HUD desactivado.");
     }
 
     hudLines = lines;
@@ -201,13 +242,20 @@ btnCapture.addEventListener("click", async () => {
     if (!hudLines || hudLines.length === 0) {
         const now = new Date();
         const fechaStr = now.toLocaleString();
-        hudLines = [
-            `Fecha: ${fechaStr}`,
-            lat != null && lng != null ? `Lat: ${lat.toFixed(6)}` : "Ubicación no disponible",
-            lat != null && lng != null ? `Lng: ${lng.toFixed(6)}` : "",
-            `Tramo: ${tramo}`,
-            `PR: ${prInfo.pr}+${prInfo.metros}m`
-        ].filter(Boolean);
+        const lines = [];
+
+        if (hudConfig.showDate) lines.push(`Fecha: ${fechaStr}`);
+        if (hudConfig.showLatLng && lat != null && lng != null) {
+            lines.push(`Lat: ${lat.toFixed(6)}`);
+            lines.push(`Lng: ${lng.toFixed(6)}`);
+        }
+        if (hudConfig.showTramo) lines.push(`Tramo: ${tramo}`);
+        if (hudConfig.showPR) lines.push(`PR: ${prInfo.pr}+${prInfo.metros}m`);
+        if (hudConfig.customText && hudConfig.customText.trim() !== "") {
+            lines.push(hudConfig.customText.trim());
+        }
+
+        hudLines = lines.length ? lines : ["HUD desactivado."];
     }
 
     // Barra inferior multilínea igual al HUD
@@ -241,7 +289,7 @@ btnCapture.addEventListener("click", async () => {
         const url = URL.createObjectURL(blob);
         const timestamp = new Date().toLocaleString();
         capturedPhotos.push({ url, timestamp });
-        btnGallery.disabled = capturedPhotos.length === 0 ? true : false;
+        btnGallery.disabled = capturedPhotos.length === 0;
 
         const file = new File([blob], "foto_pr.jpg", { type: "image/jpeg" });
 
@@ -315,4 +363,44 @@ galleryOverlay.addEventListener("click", (e) => {
     if (e.target === galleryOverlay) {
         closeGallery();
     }
+});
+
+// ---------------------------
+// Configuración HUD
+// ---------------------------
+function openSettings() {
+    // cargar estado actual en el formulario
+    chkDate.checked = hudConfig.showDate;
+    chkLatLng.checked = hudConfig.showLatLng;
+    chkTramo.checked = hudConfig.showTramo;
+    chkPR.checked = hudConfig.showPR;
+    txtCustom.value = hudConfig.customText;
+    settingsOverlay.classList.add("show");
+}
+
+function closeSettings() {
+    settingsOverlay.classList.remove("show");
+}
+
+btnConfig.addEventListener("click", openSettings);
+btnCloseSettings.addEventListener("click", closeSettings);
+
+// cerrar tocando fuera del cuadro
+settingsOverlay.addEventListener("click", (e) => {
+    if (e.target === settingsOverlay) {
+        closeSettings();
+    }
+});
+
+// guardar configuración
+settingsForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    hudConfig.showDate = chkDate.checked;
+    hudConfig.showLatLng = chkLatLng.checked;
+    hudConfig.showTramo = chkTramo.checked;
+    hudConfig.showPR = chkPR.checked;
+    hudConfig.customText = (txtCustom.value || "").slice(0, 30);
+
+    closeSettings();
+    updateHUD(); // aplicar de inmediato
 });
