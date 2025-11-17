@@ -9,7 +9,6 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a3d62">
 
-    <!-- MUY IMPORTANTE: usar "defer" para que el DOM exista antes del script -->
     <script defer src="kml_loader.js"></script>
     <script defer src="pr_finder.js"></script>
     <script defer src="script.js"></script>
@@ -18,13 +17,25 @@
 <body>
     <h2>Captura con PR</h2>
 
-    <video id="video" autoplay playsinline muted></video>
+    <!-- Contenedor para poder poner el HUD encima del video -->
+    <div class="video-wrapper">
+        <video id="video" autoplay playsinline muted></video>
 
-    <!-- ÚNICO botón que quieres: Capturar -->
+        <!-- HUD: texto en vivo sobre el video -->
+        <div id="hud">
+            <div id="hud-text">Inicializando…</div>
+        </div>
+    </div>
+
+    <!-- Botón de captura -->
     <button id="btnCapture" disabled>📸 Capturar</button>
 
     <canvas id="canvas" style="display:none"></canvas>
 
     <p id="status">Cargando KML y PRs…</p>
+
+    <!-- Toast / notificación interna -->
+    <div id="toast"></div>
 </body>
 </html>
+
