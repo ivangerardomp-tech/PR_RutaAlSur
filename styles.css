@@ -115,7 +115,7 @@ video {
         position: fixed;
         right: 10px;
         top: 50%;
-        transform: translateY(-50%) rotate(90deg);
+        transform: translateY(-50%);
         transform-origin: center;
         margin-top: 0;
     }
