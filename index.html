@@ -9,6 +9,7 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0a3d62">
 
+    <!-- MUY IMPORTANTE: usar "defer" para que el DOM exista antes del script -->
     <script defer src="kml_loader.js"></script>
     <script defer src="pr_finder.js"></script>
     <script defer src="script.js"></script>
@@ -19,11 +20,8 @@
 
     <video id="video" autoplay playsinline muted></video>
 
+    <!-- ÚNICO botón que quieres: Capturar -->
     <button id="btnCapture" disabled>📸 Capturar</button>
-    <!-- Botón SOLO de respaldo, oculto al inicio -->
-    <button id="btnFallback" style="display:none; margin-top:10px;">
-        🔄 Activar cámara si no se ve
-    </button>
 
     <canvas id="canvas" style="display:none"></canvas>
 
